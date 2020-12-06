@@ -1,57 +1,49 @@
 process.env.NTBA_FIX_319 = 1;
+const fs = require("fs");
 const TelegramBot = require("node-telegram-bot-api");
-const { exec } = require("child_process");
+const util = require("util");
+const exec = util.promisify(require("child_process").exec);
 require("dotenv").config();
 
-// replace the value below with the Telegram token you receive from @BotFather
 const token = process.env.TELEGRAM_TOKEN;
 
-// Create a bot that uses 'polling' to fetch new updates
 const bot = new TelegramBot(token, { polling: true });
 
-// Matches "/echo [whatever]"
 bot.onText(/\/echo (.+)/, (msg, match) => {
-  // 'msg' is the received Message from Telegram
-  // 'match' is the result of executing the regexp above on the text content
-  // of the message
-
   const chatId = msg.chat.id;
-  const resp = match[1]; // the captured "whatever"
-
-  // send back the matched "whatever" to the chat
+  const resp = match[1];
   bot.sendMessage(chatId, resp);
 });
 
-// Listen for any kind of message. There are different kinds of
-// messages.
 bot.on("message", (msg) => {
   const chatId = msg.chat.id;
 
-  if (msgIsValidUrl(msg)) {
-    return downloadVideo(videoUrl);
+  if (msgIsValidUrl(msg.text)) {
+    downloadVideo(msg.text, () => {
+      bot.sendMessage(chatId, "Downloading and converting... please wait.");
+      bot.sendAudio(chatId, "./audio.mp3").then(() => {
+        fs.unlinkSync("./audio.mp3");
+      });
+    });
+  } else {
+    bot.sendMessage(chatId, "Please send a valid youtube url");
   }
-
-  bot.sendMessage(chatId, "Please send a valid youtube url");
 });
-
-// check for valid youtube url
 
 function msgIsValidUrl(msg) {
   return (
     msg &&
-    msg.toLowerCase().indexOf("youtube") > 0 &&
-    msg.toLowerCase().indexOf("https")
+    (msg.toLowerCase().indexOf("youtube") !== -1 ||
+      msg.toLowerCase().indexOf("youtu") !== -1) &&
+    msg.toLowerCase().indexOf("https") !== -1
   );
 }
 
-function downloadVideo(videoUrl) {
-  exec(
-    "youtube-dl -x --audio-format mp3 " + videoUrl,
-    (error, data, getter) => {
-      if (error) {
-        console.log("error", error.message);
-        return;
-      }
-    }
+async function downloadVideo(videoUrl, callback) {
+  const { stdout, stderr } = await exec(
+    `youtube-dl -x --audio-format mp3 --output audio.mp3 ${videoUrl}`
   );
+  if (!stderr && callback) callback();
 }
+
+bot.on("polling_error", (err) => console.log(err));
