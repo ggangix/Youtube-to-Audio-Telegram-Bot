@@ -4,9 +4,10 @@ Telegram Bot to download and convert Youtube videos and deliver audio files
 
 ## Usage
 
-1. Clone the repository
-2. npm install
-3. Add an .env file with the following structure:
+1. Install youtube-dl
+2. Clone the repository
+3. npm install
+4. Add an .env file with the following structure:
 
 ```
 TELEGRAM_TOKEN=
