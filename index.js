@@ -31,7 +31,7 @@ bot.on("message", (msg) => {
           } minutes`
         );
 
-      downloadVideo(msg.text, () => {
+      downloadVideo(msg.text, chatId, () => {
         bot
           .sendAudio(chatId, `./${filename}`)
           .then(() => {
@@ -62,7 +62,7 @@ function msgIsValidUrl(msg) {
   );
 }
 
-async function downloadVideo(videoUrl, callback) {
+async function downloadVideo(videoUrl, chatId, callback) {
   bot.sendMessage(chatId, "Downloading and converting... please wait.");
   const { stdout, stderr } = await exec(
     `youtube-dl -x --output ${filename} --audio-format mp3 --max-filesize 70m ${videoUrl} `
