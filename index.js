@@ -11,6 +11,8 @@ const bot = new TelegramBot(token, { polling: true });
 
 const filename = "audio.mp3";
 const maxDuration = 2917;
+let specialCase = false;
+const magicWord = "porfis";
 
 bot.onText(/\/echo (.+)/, (msg, match) => {
   const chatId = msg.chat.id;
@@ -22,14 +24,22 @@ bot.on("message", (msg) => {
   const chatId = msg.chat.id;
 
   if (msgIsValidUrl(msg.text)) {
-    durationTest(msg.text, (error) => {
+    durationTest(msg.text, (error, duration) => {
       if (error)
-        return bot.sendMessage(
+        bot.sendMessage(
           chatId,
           `Sorry, the video duration should be less than ${
             maxDuration / 60
           } minutes`
         );
+      if (!specialCase) return false;
+
+      if (error && specialCase) {
+        bot.sendMessage(
+          chatId,
+          `..you know what? I will make a exception for today.`
+        );
+      }
 
       downloadVideo(msg.text, chatId, () => {
         bot
@@ -54,18 +64,22 @@ bot.on("message", (msg) => {
 });
 
 function msgIsValidUrl(msg) {
+  if (!msg) return false;
+  const message = msg.toLowerCase().split(" ");
+  if (message.length > 1) specialCase = message[0] === magicWord;
+  const url = message[message.length - 1];
+
   return (
-    msg &&
-    (msg.toLowerCase().indexOf("youtube") !== -1 ||
-      msg.toLowerCase().indexOf("youtu") !== -1) &&
-    msg.toLowerCase().indexOf("https") !== -1
+    url &&
+    (url.indexOf("youtube") !== -1 || url.indexOf("youtu") !== -1) &&
+    url.indexOf("https") !== -1
   );
 }
 
 async function downloadVideo(videoUrl, chatId, callback) {
   bot.sendMessage(chatId, "Downloading and converting... please wait.");
   const { stdout, stderr } = await exec(
-    `youtube-dl -x --output ${filename} --audio-format mp3 --max-filesize 70m ${videoUrl} `
+    `youtube-dl -x --output ${filename} --audio-format mp3 ${videoUrl} `
   );
 
   if (!stderr && callback) callback();
@@ -76,7 +90,7 @@ async function durationTest(videoUrl, callback) {
     `youtube-dl -s --get-duration ${videoUrl} `
   );
   duration = hmsToSeconds(stdout);
-  if (!stderr && callback) callback(duration > maxDuration);
+  if (!stderr && callback) callback(duration > maxDuration, stdout);
 }
 
 function hmsToSeconds(str) {
